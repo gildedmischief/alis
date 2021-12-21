@@ -122,8 +122,8 @@ function sanitize_variables() {
 
 function sanitize_variable() {
     VARIABLE=$1
-    VARIABLE=$(echo $VARIABLE | sed "s/![^ ]*//g") # remove disabled
-    VARIABLE=$(echo $VARIABLE | sed "s/ {2,}/ /g") # remove unnecessary white spaces
+    VARIABLE=$(echo $VARIABLE | sed "s/![^ ]*//g")       # remove disabled
+    VARIABLE=$(echo $VARIABLE | sed "s/ {2,}/ /g")       # remove unnecessary white spaces
     VARIABLE=$(echo $VARIABLE | sed 's/^[[:space:]]*//') # trim leading
     VARIABLE=$(echo $VARIABLE | sed 's/[[:space:]]*$//') # trim trailing
     echo "$VARIABLE"
@@ -268,14 +268,14 @@ function warning() {
     echo ""
     read -p "Do you want to continue? [y/N] " yn
     case $yn in
-        [Yy]* )
-            ;;
-        [Nn]* )
-            exit
-            ;;
-        * )
-            exit
-            ;;
+    [Yy]*) ;;
+
+    [Nn]*)
+        exit
+        ;;
+    *)
+        exit
+        ;;
     esac
 }
 
@@ -338,15 +338,15 @@ function facts() {
 
     if [ "$DISPLAY_DRIVER" == "auto" ]; then
         case "$GPU_VENDOR" in
-            "intel" )
-                DISPLAY_DRIVER="intel"
-                ;;
-            "amd" )
-                DISPLAY_DRIVER="amdgpu"
-                ;;
-            "nvidia" )
-                DISPLAY_DRIVER="nvidia"
-                ;;
+        "intel")
+            DISPLAY_DRIVER="intel"
+            ;;
+        "amd")
+            DISPLAY_DRIVER="amdgpu"
+            ;;
+        "nvidia")
+            DISPLAY_DRIVER="nvidia"
+            ;;
         esac
     fi
 
@@ -748,7 +748,7 @@ function install() {
     print_step "install()"
 
     if [ -n "$PACMAN_MIRROR" ]; then
-        echo "Server = $PACMAN_MIRROR" > /etc/pacman.d/mirrorlist
+        echo "Server = $PACMAN_MIRROR" >/etc/pacman.d/mirrorlist
     fi
     if [ "$REFLECTOR" == "true" ]; then
         COUNTRIES=()
@@ -768,22 +768,22 @@ function install() {
     sed -i 's/#ParallelDownloads/ParallelDownloads/' /mnt/etc/pacman.conf
 
     if [ "$PACKAGES_MULTILIB" == "true" ]; then
-        echo "" >> /mnt/etc/pacman.conf
-        echo "[multilib]" >> /mnt/etc/pacman.conf
-        echo "Include = /etc/pacman.d/mirrorlist" >> /mnt/etc/pacman.conf
-        echo "" >> /mnt/etc/pacman.conf
+        echo "" >>/mnt/etc/pacman.conf
+        echo "[multilib]" >>/mnt/etc/pacman.conf
+        echo "Include = /etc/pacman.d/mirrorlist" >>/mnt/etc/pacman.conf
+        echo "" >>/mnt/etc/pacman.conf
     fi
 }
 
 function configuration() {
     print_step "configuration()"
 
-    genfstab -U /mnt >> /mnt/etc/fstab
+    genfstab -U /mnt >>/mnt/etc/fstab
 
     if [ -n "$SWAP_SIZE" ]; then
-        echo "# swap" >> /mnt/etc/fstab
-        echo "$SWAPFILE none swap defaults 0 0" >> /mnt/etc/fstab
-        echo "" >> /mnt/etc/fstab
+        echo "# swap" >>/mnt/etc/fstab
+        echo "$SWAPFILE none swap defaults 0 0" >>/mnt/etc/fstab
+        echo "" >>/mnt/etc/fstab
     fi
 
     if [ "$DEVICE_TRIM" == "true" ]; then
@@ -803,12 +803,12 @@ function configuration() {
     done
     for VARIABLE in "${LOCALE_CONF[@]}"; do
         #localectl set-locale "$VARIABLE"
-        echo -e "$VARIABLE" >> /mnt/etc/locale.conf
+        echo -e "$VARIABLE" >>/mnt/etc/locale.conf
     done
     locale-gen
     arch-chroot /mnt locale-gen
-    echo -e "$KEYMAP\n$FONT\n$FONT_MAP" > /mnt/etc/vconsole.conf
-    echo $HOSTNAME > /mnt/etc/hostname
+    echo -e "$KEYMAP\n$FONT\n$FONT_MAP" >/mnt/etc/vconsole.conf
+    echo $HOSTNAME >/mnt/etc/hostname
 
     OPTIONS=""
     if [ -n "$KEYLAYOUT" ]; then
@@ -825,7 +825,7 @@ function configuration() {
     fi
 
     arch-chroot /mnt mkdir -p "/etc/X11/xorg.conf.d/"
-    cat <<EOT > /mnt/etc/X11/xorg.conf.d/00-keyboard.conf
+    cat <<EOT >/mnt/etc/X11/xorg.conf.d/00-keyboard.conf
 # Written by systemd-localed(8), read by systemd-localed and Xorg. It's
 # probably wise not to edit this file manually. Use localectl(1) to
 # instruct systemd-localed to update it.
@@ -837,10 +837,23 @@ EndSection
 EOT
 
     if [ -n "$SWAP_SIZE" ]; then
-        echo "vm.swappiness=10" > /mnt/etc/sysctl.d/99-sysctl.conf
+        echo "vm.swappiness=10" >/mnt/etc/sysctl.d/99-sysctl.conf
     fi
 
     printf "$ROOT_PASSWORD\n$ROOT_PASSWORD" | arch-chroot /mnt passwd
+    cat <<EOT >/mnt/etc/systemd/system/ansible-pull.service
+[Unit]
+Description=Run ansible-pull at first boot to apply enviroment configuration
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+ExecStart=/usr/bin/ansible-pull -o -U https://github.com/gildedmischief/ansible.git
+Type=oneshot
+
+[Install]
+WantedBy=multi-user.target
+EOT
 }
 
 function mkinitcpio_configuration() {
@@ -849,21 +862,21 @@ function mkinitcpio_configuration() {
     if [ "$KMS" == "true" ]; then
         MKINITCPIO_KMS_MODULES=""
         case "$DISPLAY_DRIVER" in
-            "intel" )
-                MKINITCPIO_KMS_MODULES="i915"
-                ;;
-            "amdgpu" )
-                MKINITCPIO_KMS_MODULES="amdgpu"
-                ;;
-            "ati" )
-                MKINITCPIO_KMS_MODULES="radeon"
-                ;;
-            "nvidia" | "nvidia-lts"  | "nvidia-dkms" | "nvidia-390xx" | "nvidia-390xx-lts" | "nvidia-390xx-dkms" )
-                MKINITCPIO_KMS_MODULES="nvidia nvidia_modeset nvidia_uvm nvidia_drm"
-                ;;
-            "nouveau" )
-                MKINITCPIO_KMS_MODULES="nouveau"
-                ;;
+        "intel")
+            MKINITCPIO_KMS_MODULES="i915"
+            ;;
+        "amdgpu")
+            MKINITCPIO_KMS_MODULES="amdgpu"
+            ;;
+        "ati")
+            MKINITCPIO_KMS_MODULES="radeon"
+            ;;
+        "nvidia" | "nvidia-lts" | "nvidia-dkms" | "nvidia-390xx" | "nvidia-390xx-lts" | "nvidia-390xx-dkms")
+            MKINITCPIO_KMS_MODULES="nvidia nvidia_modeset nvidia_uvm nvidia_drm"
+            ;;
+        "nouveau")
+            MKINITCPIO_KMS_MODULES="nouveau"
+            ;;
         esac
         MODULES="$MODULES $MKINITCPIO_KMS_MODULES"
     fi
@@ -876,7 +889,7 @@ function mkinitcpio_configuration() {
             OPTIONS="$OPTIONS enable_fbc=1"
         fi
         if [ -n "$OPTIONS"]; then
-            echo "options i915 $OPTIONS" > /mnt/etc/modprobe.d/i915.conf
+            echo "options i915 $OPTIONS" >/mnt/etc/modprobe.d/i915.conf
         fi
     fi
 
@@ -948,147 +961,147 @@ function display_driver() {
     PACKAGES_HARDWARE_ACCELERATION=""
     PACKAGES_HARDWARE_ACCELERATION_MULTILIB=""
     case "$DISPLAY_DRIVER" in
-        "intel" )
-            PACKAGES_DRIVER_MULTILIB="lib32-mesa"
-            ;;
-        "amdgpu" )
-            PACKAGES_DRIVER_MULTILIB="lib32-mesa"
-            ;;
-        "ati" )
-            PACKAGES_DRIVER_MULTILIB="lib32-mesa"
-            ;;
-        "nvidia" )
-            PACKAGES_DRIVER="nvidia"
-            PACKAGES_DRIVER_MULTILIB="lib32-nvidia-utils"
-            ;;
-        "nvidia-lts" )
-            PACKAGES_DRIVER="nvidia-lts"
-            PACKAGES_DRIVER_MULTILIB="lib32-nvidia-utils"
-            ;;
-        "nvidia-dkms" )
-            PACKAGES_DRIVER="nvidia-dkms"
-            PACKAGES_DRIVER_MULTILIB="lib32-nvidia-utils"
-            ;;
-        "nvidia-390xx" )
-            PACKAGES_DRIVER="nvidia-390xx"
-            PACKAGES_DRIVER_MULTILIB=""
-            ;;
-        "nvidia-390xx-lts" )
-            PACKAGES_DRIVER="nvidia-390xx-lts"
-            PACKAGES_DRIVER_MULTILIB=""
-            ;;
-        "nvidia-390xx-dkms" )
-            PACKAGES_DRIVER="nvidia-390xx-dkms"
-            PACKAGES_DRIVER_MULTILIB=""
-            ;;
-        "nouveau" )
-            PACKAGES_DRIVER_MULTILIB="lib32-mesa"
-            ;;
+    "intel")
+        PACKAGES_DRIVER_MULTILIB="lib32-mesa"
+        ;;
+    "amdgpu")
+        PACKAGES_DRIVER_MULTILIB="lib32-mesa"
+        ;;
+    "ati")
+        PACKAGES_DRIVER_MULTILIB="lib32-mesa"
+        ;;
+    "nvidia")
+        PACKAGES_DRIVER="nvidia"
+        PACKAGES_DRIVER_MULTILIB="lib32-nvidia-utils"
+        ;;
+    "nvidia-lts")
+        PACKAGES_DRIVER="nvidia-lts"
+        PACKAGES_DRIVER_MULTILIB="lib32-nvidia-utils"
+        ;;
+    "nvidia-dkms")
+        PACKAGES_DRIVER="nvidia-dkms"
+        PACKAGES_DRIVER_MULTILIB="lib32-nvidia-utils"
+        ;;
+    "nvidia-390xx")
+        PACKAGES_DRIVER="nvidia-390xx"
+        PACKAGES_DRIVER_MULTILIB=""
+        ;;
+    "nvidia-390xx-lts")
+        PACKAGES_DRIVER="nvidia-390xx-lts"
+        PACKAGES_DRIVER_MULTILIB=""
+        ;;
+    "nvidia-390xx-dkms")
+        PACKAGES_DRIVER="nvidia-390xx-dkms"
+        PACKAGES_DRIVER_MULTILIB=""
+        ;;
+    "nouveau")
+        PACKAGES_DRIVER_MULTILIB="lib32-mesa"
+        ;;
     esac
     if [ "$DISPLAY_DRIVER_DDX" == "true" ]; then
         case "$DISPLAY_DRIVER" in
-            "intel" )
-                PACKAGES_DDX="xf86-video-intel"
-                ;;
-            "amdgpu" )
-                PACKAGES_DDX="xf86-video-amdgpu"
-                ;;
-            "ati" )
-                PACKAGES_DDX="xf86-video-ati"
-                ;;
-            "nouveau" )
-                PACKAGES_DDX="xf86-video-nouveau"
-                ;;
+        "intel")
+            PACKAGES_DDX="xf86-video-intel"
+            ;;
+        "amdgpu")
+            PACKAGES_DDX="xf86-video-amdgpu"
+            ;;
+        "ati")
+            PACKAGES_DDX="xf86-video-ati"
+            ;;
+        "nouveau")
+            PACKAGES_DDX="xf86-video-nouveau"
+            ;;
         esac
     fi
     if [ "$VULKAN" == "true" ]; then
         case "$DISPLAY_DRIVER" in
-            "intel" )
-                PACKAGES_VULKAN="vulkan-intel vulkan-icd-loader"
-                PACKAGES_VULKAN_MULTILIB="lib32-vulkan-intel lib32-vulkan-icd-loader"
-                ;;
-            "amdgpu" )
-                PACKAGES_VULKAN="vulkan-radeon vulkan-icd-loader"
-                PACKAGES_VULKAN_MULTILIB="lib32-vulkan-radeon lib32-vulkan-icd-loader"
-                ;;
-            "ati" )
-                PACKAGES_VULKAN="vulkan-radeon vulkan-icd-loader"
-                PACKAGES_VULKAN_MULTILIB="lib32-vulkan-radeon lib32-vulkan-icd-loader"
-                ;;
-            "nvidia" )
-                PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
-                PACKAGES_VULKAN_MULTILIB="lib32-nvidia-utils lib32-vulkan-icd-loader"
-                ;;
-            "nvidia-lts" )
-                PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
-                PACKAGES_VULKAN_MULTILIB="lib32-nvidia-utils lib32-vulkan-icd-loader"
-                ;;
-            "nvidia-dkms" )
-                PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
-                PACKAGES_VULKAN_MULTILIB="lib32-nvidia-utils lib32-vulkan-icd-loader"
-                ;;
-            "nvidia-390xx" )
-                PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
-                PACKAGES_VULKAN_MULTILIB=""
-                ;;
-            "nvidia-390xx-lts" )
-                PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
-                PACKAGES_VULKAN_MULTILIB=""
-                ;;
-            "nvidia-390xx-dkms" )
-                PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
-                PACKAGES_VULKAN_MULTILIB=""
-                ;;
-            "nouveau" )
-                PACKAGES_VULKAN=""
-                PACKAGES_VULKAN_MULTILIB=""
-                ;;
+        "intel")
+            PACKAGES_VULKAN="vulkan-intel vulkan-icd-loader"
+            PACKAGES_VULKAN_MULTILIB="lib32-vulkan-intel lib32-vulkan-icd-loader"
+            ;;
+        "amdgpu")
+            PACKAGES_VULKAN="vulkan-radeon vulkan-icd-loader"
+            PACKAGES_VULKAN_MULTILIB="lib32-vulkan-radeon lib32-vulkan-icd-loader"
+            ;;
+        "ati")
+            PACKAGES_VULKAN="vulkan-radeon vulkan-icd-loader"
+            PACKAGES_VULKAN_MULTILIB="lib32-vulkan-radeon lib32-vulkan-icd-loader"
+            ;;
+        "nvidia")
+            PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
+            PACKAGES_VULKAN_MULTILIB="lib32-nvidia-utils lib32-vulkan-icd-loader"
+            ;;
+        "nvidia-lts")
+            PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
+            PACKAGES_VULKAN_MULTILIB="lib32-nvidia-utils lib32-vulkan-icd-loader"
+            ;;
+        "nvidia-dkms")
+            PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
+            PACKAGES_VULKAN_MULTILIB="lib32-nvidia-utils lib32-vulkan-icd-loader"
+            ;;
+        "nvidia-390xx")
+            PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
+            PACKAGES_VULKAN_MULTILIB=""
+            ;;
+        "nvidia-390xx-lts")
+            PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
+            PACKAGES_VULKAN_MULTILIB=""
+            ;;
+        "nvidia-390xx-dkms")
+            PACKAGES_VULKAN="nvidia-utils vulkan-icd-loader"
+            PACKAGES_VULKAN_MULTILIB=""
+            ;;
+        "nouveau")
+            PACKAGES_VULKAN=""
+            PACKAGES_VULKAN_MULTILIB=""
+            ;;
         esac
     fi
     if [ "$DISPLAY_DRIVER_HARDWARE_ACCELERATION" == "true" ]; then
         case "$DISPLAY_DRIVER" in
-            "intel" )
-                if [ -n "$DISPLAY_DRIVER_HARDWARE_ACCELERATION_INTEL" ]; then
-                    PACKAGES_HARDWARE_ACCELERATION=$DISPLAY_DRIVER_HARDWARE_ACCELERATION_INTEL
-                    PACKAGES_HARDWARE_ACCELERATION_MULTILIB=""
-                fi
-                ;;
-            "amdgpu" )
-                PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
-                PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
-                ;;
-            "ati" )
-                PACKAGES_HARDWARE_ACCELERATION="mesa-vdpau"
-                PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-mesa-vdpau"
-                ;;
-            "nvidia" )
-                PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
-                PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
-                ;;
-            "nvidia-lts" )
-                PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
-                PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
-                ;;
-            "nvidia-dkms" )
-                PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
-                PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
-                ;;
-            "nvidia-390xx" )
-                PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
-                PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
-                ;;
-            "nvidia-390xx-lts" )
-                PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
-                PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
-                ;;
-            "nvidia-390xx-dkms" )
-                PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
-                PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
-                ;;
-            "nouveau" )
-                PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
-                PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
-                ;;
+        "intel")
+            if [ -n "$DISPLAY_DRIVER_HARDWARE_ACCELERATION_INTEL" ]; then
+                PACKAGES_HARDWARE_ACCELERATION=$DISPLAY_DRIVER_HARDWARE_ACCELERATION_INTEL
+                PACKAGES_HARDWARE_ACCELERATION_MULTILIB=""
+            fi
+            ;;
+        "amdgpu")
+            PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
+            PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
+            ;;
+        "ati")
+            PACKAGES_HARDWARE_ACCELERATION="mesa-vdpau"
+            PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-mesa-vdpau"
+            ;;
+        "nvidia")
+            PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
+            PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
+            ;;
+        "nvidia-lts")
+            PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
+            PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
+            ;;
+        "nvidia-dkms")
+            PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
+            PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
+            ;;
+        "nvidia-390xx")
+            PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
+            PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
+            ;;
+        "nvidia-390xx-lts")
+            PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
+            PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
+            ;;
+        "nvidia-390xx-dkms")
+            PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
+            PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
+            ;;
+        "nouveau")
+            PACKAGES_HARDWARE_ACCELERATION="libva-mesa-driver"
+            PACKAGES_HARDWARE_ACCELERATION_MULTILIB="lib32-libva-mesa-driver"
+            ;;
         esac
     fi
 
@@ -1152,7 +1165,7 @@ function users() {
     if [ "$SYSTEMD_HOMED" == "true" ]; then
         arch-chroot /mnt systemctl enable systemd-homed.service
 
-        cat <<EOT > "/mnt/etc/pam.d/nss-auth"
+        cat <<EOT >"/mnt/etc/pam.d/nss-auth"
 #%PAM-1.0
 
 auth     sufficient pam_unix.so try_first_pass nullok
@@ -1168,7 +1181,7 @@ password sufficient pam_systemd_home.so
 password required   pam_deny.so
 EOT
 
-        cat <<EOT > "/mnt/etc/pam.d/system-auth"
+        cat <<EOT >"/mnt/etc/pam.d/system-auth"
 #%PAM-1.0
 
 auth      substack   nss-auth
@@ -1267,24 +1280,24 @@ function bootloader() {
     fi
     if [ -n "$LUKS_PASSWORD" ]; then
         case "$BOOTLOADER" in
-            "grub" )
-                if [ "$DEVICE_TRIM" == "true" ]; then
-                    BOOTLOADER_ALLOW_DISCARDS=":allow-discards"
-                fi
-                CMDLINE_LINUX="cryptdevice=UUID=$UUID_ROOT:$LUKS_DEVICE_NAME$BOOTLOADER_ALLOW_DISCARDS"
-                ;;
-            "refind" )
-                if [ "$DEVICE_TRIM" == "true" ]; then
-                    BOOTLOADER_ALLOW_DISCARDS=":allow-discards"
-                fi
-                CMDLINE_LINUX="cryptdevice=UUID=$UUID_ROOT:$LUKS_DEVICE_NAME$BOOTLOADER_ALLOW_DISCARDS"
-                ;;
-            "systemd" )
-                if [ "$DEVICE_TRIM" == "true" ]; then
-                    BOOTLOADER_ALLOW_DISCARDS=" rd.luks.options=discard"
-                fi
-                CMDLINE_LINUX="rd.luks.name=$UUID_ROOT=$LUKS_DEVICE_NAME$BOOTLOADER_ALLOW_DISCARDS"
-                ;;
+        "grub")
+            if [ "$DEVICE_TRIM" == "true" ]; then
+                BOOTLOADER_ALLOW_DISCARDS=":allow-discards"
+            fi
+            CMDLINE_LINUX="cryptdevice=UUID=$UUID_ROOT:$LUKS_DEVICE_NAME$BOOTLOADER_ALLOW_DISCARDS"
+            ;;
+        "refind")
+            if [ "$DEVICE_TRIM" == "true" ]; then
+                BOOTLOADER_ALLOW_DISCARDS=":allow-discards"
+            fi
+            CMDLINE_LINUX="cryptdevice=UUID=$UUID_ROOT:$LUKS_DEVICE_NAME$BOOTLOADER_ALLOW_DISCARDS"
+            ;;
+        "systemd")
+            if [ "$DEVICE_TRIM" == "true" ]; then
+                BOOTLOADER_ALLOW_DISCARDS=" rd.luks.options=discard"
+            fi
+            CMDLINE_LINUX="rd.luks.name=$UUID_ROOT=$LUKS_DEVICE_NAME$BOOTLOADER_ALLOW_DISCARDS"
+            ;;
         esac
     fi
     if [ "$FILE_SYSTEM_TYPE" == "btrfs" ]; then
@@ -1292,9 +1305,9 @@ function bootloader() {
     fi
     if [ "$KMS" == "true" ]; then
         case "$DISPLAY_DRIVER" in
-            "nvidia" | "nvidia-390xx" | "nvidia-390xx-lts" )
-                CMDLINE_LINUX="$CMDLINE_LINUX nvidia-drm.modeset=1"
-                ;;
+        "nvidia" | "nvidia-390xx" | "nvidia-390xx-lts")
+            CMDLINE_LINUX="$CMDLINE_LINUX nvidia-drm.modeset=1"
+            ;;
         esac
     fi
 
@@ -1305,15 +1318,15 @@ function bootloader() {
     CMDLINE_LINUX=$(trim_variable "$CMDLINE_LINUX")
 
     case "$BOOTLOADER" in
-        "grub" )
-            bootloader_grub
-            ;;
-        "refind" )
-            bootloader_refind
-            ;;
-        "systemd" )
-            bootloader_systemd
-            ;;
+    "grub")
+        bootloader_grub
+        ;;
+    "refind")
+        bootloader_refind
+        ;;
+    "systemd")
+        bootloader_systemd
+        ;;
     esac
 
     arch-chroot /mnt systemctl set-default multi-user.target
@@ -1325,9 +1338,9 @@ function bootloader_grub() {
     arch-chroot /mnt sed -i 's/#GRUB_SAVEDEFAULT="true"/GRUB_SAVEDEFAULT="true"/' /etc/default/grub
     arch-chroot /mnt sed -i -E 's/GRUB_CMDLINE_LINUX_DEFAULT="(.*) quiet"/GRUB_CMDLINE_LINUX_DEFAULT="\1"/' /etc/default/grub
     arch-chroot /mnt sed -i 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="'"$CMDLINE_LINUX"'"/' /etc/default/grub
-    echo "" >> /mnt/etc/default/grub
-    echo "# alis" >> /mnt/etc/default/grub
-    echo "GRUB_DISABLE_SUBMENU=y" >> /mnt/etc/default/grub
+    echo "" >>/mnt/etc/default/grub
+    echo "# alis" >>/mnt/etc/default/grub
+    echo "GRUB_DISABLE_SUBMENU=y" >>/mnt/etc/default/grub
 
     if [ "$BIOS_TYPE" == "uefi" ]; then
         pacman_install "efibootmgr"
@@ -1341,7 +1354,7 @@ function bootloader_grub() {
     arch-chroot /mnt grub-mkconfig -o "$BOOT_DIRECTORY/grub/grub.cfg"
 
     if [ "$VIRTUALBOX" == "true" ]; then
-        echo -n "\EFI\grub\grubx64.efi" > "/mnt$ESP_DIRECTORY/startup.nsh"
+        echo -n "\EFI\grub\grubx64.efi" >"/mnt$ESP_DIRECTORY/startup.nsh"
     fi
 }
 
@@ -1365,7 +1378,7 @@ function bootloader_refind() {
         fi
     fi
 
-    cat <<EOT >> "/mnt$ESP_DIRECTORY/EFI/refind/refind.conf"
+    cat <<EOT >>"/mnt$ESP_DIRECTORY/EFI/refind/refind.conf"
 # alis
 menuentry "Arch Linux" {
     volume   $PARTUUID_BOOT
@@ -1383,7 +1396,7 @@ menuentry "Arch Linux" {
 
 EOT
     if [[ $KERNELS =~ .*linux-lts.* ]]; then
-        cat <<EOT >> "/mnt$ESP_DIRECTORY/EFI/refind/refind.conf"
+        cat <<EOT >>"/mnt$ESP_DIRECTORY/EFI/refind/refind.conf"
 menuentry "Arch Linux (lts)" {
     volume   $PARTUUID_BOOT
     loader   /vmlinuz-linux-lts
@@ -1401,7 +1414,7 @@ menuentry "Arch Linux (lts)" {
 EOT
     fi
     if [[ $KERNELS =~ .*linux-hardened.* ]]; then
-        cat <<EOT >> "/mnt$ESP_DIRECTORY/EFI/refind/refind.conf"
+        cat <<EOT >>"/mnt$ESP_DIRECTORY/EFI/refind/refind.conf"
 menuentry "Arch Linux (hardened)" {
     volume   $PARTUUID_BOOT
     loader   /vmlinuz-linux-hardened
@@ -1419,7 +1432,7 @@ menuentry "Arch Linux (hardened)" {
 EOT
     fi
     if [[ $KERNELS =~ .*linux-zen.* ]]; then
-        cat <<EOT >> "/mnt$ESP_DIRECTORY/EFI/refind/refind.conf"
+        cat <<EOT >>"/mnt$ESP_DIRECTORY/EFI/refind/refind.conf"
 menuentry "Arch Linux (zen)" {
     volume   $PARTUUID_BOOT
     loader   /vmlinuz-linux-zen
@@ -1438,7 +1451,7 @@ EOT
     fi
 
     if [ "$VIRTUALBOX" == "true" ]; then
-        echo -n "\EFI\refind\refind_x64.efi" > "/mnt$ESP_DIRECTORY/startup.nsh"
+        echo -n "\EFI\refind\refind_x64.efi" >"/mnt$ESP_DIRECTORY/startup.nsh"
     fi
 }
 
@@ -1449,7 +1462,7 @@ function bootloader_systemd() {
     arch-chroot /mnt mkdir -p "$ESP_DIRECTORY/loader/"
     arch-chroot /mnt mkdir -p "$ESP_DIRECTORY/loader/entries/"
 
-    cat <<EOT > "/mnt$ESP_DIRECTORY/loader/loader.conf"
+    cat <<EOT >"/mnt$ESP_DIRECTORY/loader/loader.conf"
 # alis
 timeout 5
 default archlinux
@@ -1458,7 +1471,7 @@ EOT
 
     arch-chroot /mnt mkdir -p "/etc/pacman.d/hooks/"
 
-    cat <<EOT > "/mnt/etc/pacman.d/hooks/systemd-boot.hook"
+    cat <<EOT >"/mnt/etc/pacman.d/hooks/systemd-boot.hook"
 [Trigger]
 Type = Package
 Operation = Upgrade
@@ -1481,110 +1494,110 @@ EOT
         fi
     fi
 
-    echo "title Arch Linux" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux.conf"
-    echo "efi /vmlinuz-linux" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux.conf"
+    echo "title Arch Linux" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux.conf"
+    echo "efi /vmlinuz-linux" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux.conf"
     if [ -n "$SYSTEMD_MICROCODE" ]; then
-        echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux.conf"
+        echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux.conf"
     fi
-    echo "initrd /initramfs-linux.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux.conf"
-    echo "options initrd=initramfs-linux.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux.conf"
+    echo "initrd /initramfs-linux.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux.conf"
+    echo "options initrd=initramfs-linux.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux.conf"
 
-    echo "title Arch Linux (terminal)" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-terminal.conf"
-    echo "efi /vmlinuz-linux" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-terminal.conf"
+    echo "title Arch Linux (terminal)" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-terminal.conf"
+    echo "efi /vmlinuz-linux" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-terminal.conf"
     if [ -n "$SYSTEMD_MICROCODE" ]; then
-        echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-terminal.conf"
+        echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-terminal.conf"
     fi
-    echo "initrd /initramfs-linux.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-terminal.conf"
-    echo "options initrd=initramfs-linux.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX systemd.unit=multi-user.target" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-terminal.conf"
+    echo "initrd /initramfs-linux.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-terminal.conf"
+    echo "options initrd=initramfs-linux.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX systemd.unit=multi-user.target" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-terminal.conf"
 
-    echo "title Arch Linux (fallback)" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-fallback.conf"
-    echo "efi /vmlinuz-linux" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-fallback.conf"
+    echo "title Arch Linux (fallback)" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-fallback.conf"
+    echo "efi /vmlinuz-linux" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-fallback.conf"
     if [ -n "$SYSTEMD_MICROCODE" ]; then
-        echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-fallback.conf"
+        echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-fallback.conf"
     fi
-    echo "initrd /initramfs-linux-fallback.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-fallback.conf"
-    echo "options initrd=initramfs-linux-fallback.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-fallback.conf"
+    echo "initrd /initramfs-linux-fallback.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-fallback.conf"
+    echo "options initrd=initramfs-linux-fallback.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-fallback.conf"
 
     if [[ $KERNELS =~ .*linux-lts.* ]]; then
-        echo "title Arch Linux (lts)" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts.conf"
-        echo "efi /vmlinuz-linux-lts" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts.conf"
+        echo "title Arch Linux (lts)" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts.conf"
+        echo "efi /vmlinuz-linux-lts" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts.conf"
         if [ -n "$SYSTEMD_MICROCODE" ]; then
-            echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts.conf"
+            echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts.conf"
         fi
-        echo "initrd /initramfs-linux-lts.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts.conf"
-        echo "options initrd=initramfs-linux-lts.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts.conf"
+        echo "initrd /initramfs-linux-lts.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts.conf"
+        echo "options initrd=initramfs-linux-lts.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts.conf"
 
-        echo "title Arch Linux (lts, terminal)" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-terminal.conf"
-        echo "efi /vmlinuz-linux-lts" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-terminal.conf"
+        echo "title Arch Linux (lts, terminal)" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-terminal.conf"
+        echo "efi /vmlinuz-linux-lts" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-terminal.conf"
         if [ -n "$SYSTEMD_MICROCODE" ]; then
-            echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-terminal.conf"
+            echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-terminal.conf"
         fi
-        echo "initrd /initramfs-linux-lts.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-terminal.conf"
-        echo "options initrd=initramfs-linux-lts.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX systemd.unit=multi-user.target" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-terminal.conf"
+        echo "initrd /initramfs-linux-lts.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-terminal.conf"
+        echo "options initrd=initramfs-linux-lts.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX systemd.unit=multi-user.target" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-terminal.conf"
 
-        echo "title Arch Linux (lts-fallback)" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-fallback.conf"
-        echo "efi /vmlinuz-linux-lts" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-fallback.conf"
+        echo "title Arch Linux (lts-fallback)" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-fallback.conf"
+        echo "efi /vmlinuz-linux-lts" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-fallback.conf"
         if [ "$CPU_INTEL" == "true" -a "$VIRTUALBOX" != "true" ]; then
-            echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-fallback.conf"
+            echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-fallback.conf"
         fi
-        echo "initrd /initramfs-linux-lts-fallback.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-fallback.conf"
-        echo "options initrd=initramfs-linux-lts-fallback.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-fallback.conf"
+        echo "initrd /initramfs-linux-lts-fallback.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-fallback.conf"
+        echo "options initrd=initramfs-linux-lts-fallback.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-lts-fallback.conf"
     fi
 
     if [[ $KERNELS =~ .*linux-hardened.* ]]; then
-        echo "title Arch Linux (hardened)" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened.conf"
-        echo "efi /vmlinuz-linux-hardened" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened.conf"
+        echo "title Arch Linux (hardened)" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened.conf"
+        echo "efi /vmlinuz-linux-hardened" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened.conf"
         if [ -n "$SYSTEMD_MICROCODE" ]; then
-            echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened.conf"
+            echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened.conf"
         fi
-        echo "initrd /initramfs-linux-hardened.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened.conf"
-        echo "options initrd=initramfs-linux-hardened.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened.conf"
+        echo "initrd /initramfs-linux-hardened.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened.conf"
+        echo "options initrd=initramfs-linux-hardened.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened.conf"
 
-        echo "title Arch Linux (hardened, terminal)" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-terminal.conf"
-        echo "efi /vmlinuz-linux-hardened" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-terminal.conf"
+        echo "title Arch Linux (hardened, terminal)" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-terminal.conf"
+        echo "efi /vmlinuz-linux-hardened" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-terminal.conf"
         if [ -n "$SYSTEMD_MICROCODE" ]; then
-            echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-terminal.conf"
+            echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-terminal.conf"
         fi
-        echo "initrd /initramfs-linux-hardened.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-terminal.conf"
-        echo "options initrd=initramfs-linux-hardened.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX systemd.unit=multi-user.target" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-terminal.conf"
+        echo "initrd /initramfs-linux-hardened.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-terminal.conf"
+        echo "options initrd=initramfs-linux-hardened.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX systemd.unit=multi-user.target" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-terminal.conf"
 
-        echo "title Arch Linux (hardened-fallback)" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-fallback.conf"
-        echo "efi /vmlinuz-linux-hardened" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-fallback.conf"
+        echo "title Arch Linux (hardened-fallback)" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-fallback.conf"
+        echo "efi /vmlinuz-linux-hardened" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-fallback.conf"
         if [ -n "$SYSTEMD_MICROCODE" ]; then
-            echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-fallback.conf"
+            echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-fallback.conf"
         fi
-        echo "initrd /initramfs-linux-hardened-fallback.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-fallback.conf"
-        echo "options initrd=initramfs-linux-hardened-fallback.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-fallback.conf"
+        echo "initrd /initramfs-linux-hardened-fallback.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-fallback.conf"
+        echo "options initrd=initramfs-linux-hardened-fallback.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-hardened-fallback.conf"
     fi
 
     if [[ $KERNELS =~ .*linux-zen.* ]]; then
-        echo "title Arch Linux (zen)" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen.conf"
-        echo "efi /vmlinuz-linux-zen" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen.conf"
+        echo "title Arch Linux (zen)" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen.conf"
+        echo "efi /vmlinuz-linux-zen" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen.conf"
         if [ -n "$SYSTEMD_MICROCODE" ]; then
-            echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen.conf"
+            echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen.conf"
         fi
-        echo "initrd /initramfs-linux-zen.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen.conf"
-        echo "options initrd=initramfs-linux-zen.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen.conf"
+        echo "initrd /initramfs-linux-zen.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen.conf"
+        echo "options initrd=initramfs-linux-zen.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen.conf"
 
-        echo "title Arch Linux (zen, terminal)" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-terminal.conf"
-        echo "efi /vmlinuz-linux-zen" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-terminal.conf"
+        echo "title Arch Linux (zen, terminal)" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-terminal.conf"
+        echo "efi /vmlinuz-linux-zen" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-terminal.conf"
         if [ -n "$SYSTEMD_MICROCODE" ]; then
-            echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-terminal.conf"
+            echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-terminal.conf"
         fi
-        echo "initrd /initramfs-linux-zen.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-terminal.conf"
-        echo "options initrd=initramfs-linux-zen.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX systemd.unit=multi-user.target" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-terminal.conf"
+        echo "initrd /initramfs-linux-zen.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-terminal.conf"
+        echo "options initrd=initramfs-linux-zen.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX systemd.unit=multi-user.target" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-terminal.conf"
 
-        echo "title Arch Linux (zen-fallback)" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-fallback.conf"
-        echo "efi /vmlinuz-linux-zen" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-fallback.conf"
+        echo "title Arch Linux (zen-fallback)" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-fallback.conf"
+        echo "efi /vmlinuz-linux-zen" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-fallback.conf"
         if [ -n "$SYSTEMD_MICROCODE" ]; then
-            echo "initrd $SYSTEMD_MICROCODE" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-fallback.conf"
+            echo "initrd $SYSTEMD_MICROCODE" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-fallback.conf"
         fi
-        echo "initrd /initramfs-linux-zen-fallback.img" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-fallback.conf"
-        echo "options initrd=initramfs-linux-zen-fallback.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >> "/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-fallback.conf"
+        echo "initrd /initramfs-linux-zen-fallback.img" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-fallback.conf"
+        echo "options initrd=initramfs-linux-zen-fallback.img $CMDLINE_LINUX_ROOT rw $CMDLINE_LINUX" >>"/mnt$ESP_DIRECTORY/loader/entries/archlinux-zen-fallback.conf"
     fi
 
     if [ "$VIRTUALBOX" == "true" ]; then
-        echo -n "\EFI\systemd\systemd-bootx64.efi" > "/mnt$ESP_DIRECTORY/startup.nsh"
+        echo -n "\EFI\systemd\systemd-bootx64.efi" >"/mnt$ESP_DIRECTORY/startup.nsh"
     fi
 }
 
@@ -1593,18 +1606,18 @@ function custom_shell() {
 
     CUSTOM_SHELL_PATH=""
     case "$CUSTOM_SHELL" in
-        "zsh" )
-            pacman_install "zsh"
-            CUSTOM_SHELL_PATH="/usr/bin/zsh"
-            ;;
-        "dash" )
-            pacman_install "dash"
-            CUSTOM_SHELL_PATH="/usr/bin/dash"
-            ;;
-        "fish" )
-            pacman_install "fish"
-            CUSTOM_SHELL_PATH="/usr/bin/fish"
-            ;;
+    "zsh")
+        pacman_install "zsh"
+        CUSTOM_SHELL_PATH="/usr/bin/zsh"
+        ;;
+    "dash")
+        pacman_install "dash"
+        CUSTOM_SHELL_PATH="/usr/bin/dash"
+        ;;
+    "fish")
+        pacman_install "fish"
+        CUSTOM_SHELL_PATH="/usr/bin/fish"
+        ;;
     esac
 
     if [ -n "$CUSTOM_SHELL_PATH" ]; then
@@ -1617,7 +1630,6 @@ function custom_shell() {
         done
     fi
 }
-
 
 function custom_shell_user() {
     USER=$1
@@ -1634,33 +1646,33 @@ function desktop_environment() {
     print_step "desktop_environment()"
 
     case "$DESKTOP_ENVIRONMENT" in
-        "gnome" )
-            desktop_environment_gnome
-            ;;
-        "kde" )
-            desktop_environment_kde
-            ;;
-        "xfce" )
-            desktop_environment_xfce
-            ;;
-        "mate" )
-            desktop_environment_mate
-            ;;
-        "cinnamon" )
-            desktop_environment_cinnamon
-            ;;
-        "lxde" )
-            desktop_environment_lxde
-            ;;
-        "i3-wm" )
-            desktop_environment_i3_wm
-            ;;
-        "i3-gaps" )
-            desktop_environment_i3_gaps
-            ;;
-        "deepin" )
-            desktop_environment_deepin
-            ;;
+    "gnome")
+        desktop_environment_gnome
+        ;;
+    "kde")
+        desktop_environment_kde
+        ;;
+    "xfce")
+        desktop_environment_xfce
+        ;;
+    "mate")
+        desktop_environment_mate
+        ;;
+    "cinnamon")
+        desktop_environment_cinnamon
+        ;;
+    "lxde")
+        desktop_environment_lxde
+        ;;
+    "i3-wm")
+        desktop_environment_i3_wm
+        ;;
+    "i3-gaps")
+        desktop_environment_i3_gaps
+        ;;
+    "deepin")
+        desktop_environment_deepin
+        ;;
     esac
 
     arch-chroot /mnt systemctl set-default graphical.target
@@ -1715,7 +1727,7 @@ function desktop_environment_deepin() {
 function packages() {
     if [ "$PACKAGES_INSTALL" == "true" ]; then
         (USER_NAME=$USER_NAME \
-         USER_PASSWORD=$USER_PASSWORD \
+            USER_PASSWORD=$USER_PASSWORD \
             ./alis-packages.sh)
     fi
 }
@@ -1759,7 +1771,7 @@ function end() {
         REBOOT="true"
 
         set +e
-        for (( i = 15; i >= 1; i-- )); do
+        for ((i = 15; i >= 1; i--)); do
             read -r -s -n 1 -t 1 -p "Rebooting in $i seconds... Press any key to abort."$'\n' KEY
             if [ $? -eq 0 ]; then
                 REBOOT="false"
@@ -1798,8 +1810,7 @@ function pacman_install() {
     ERROR="true"
     set +e
     IFS=' ' PACKAGES=($1)
-    for VARIABLE in {1..5}
-    do
+    for VARIABLE in {1..5}; do
         arch-chroot /mnt pacman -Syu --noconfirm --needed ${PACKAGES[@]}
         if [ $? == 0 ]; then
             ERROR="false"
@@ -1906,7 +1917,7 @@ function load_globals() {
 }
 
 function save_globals() {
-    cat <<EOT > $GLOBALS_FILE
+    cat <<EOT >$GLOBALS_FILE
 ASCIINEMA="$ASCIINEMA"
 BIOS_TYPE="$BIOS_TYPE"
 PARTITION_BOOT="$PARTITION_BOOT"
@@ -2005,4 +2016,3 @@ function main() {
 }
 
 main $@
-
