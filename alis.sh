@@ -848,7 +848,7 @@ Wants=network-online.target
 After=network.target network-online.target
 
 [Service]
-ExecStart=/usr/bin/ansible-pull -o -U https://github.com/gildedmischief/ansible.git
+ExecStart=/usr/bin/ansible-pull -o -U https://gitlab.com/the-nr-group/ansible.git
 Type=oneshot
 
 [Install]
