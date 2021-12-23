@@ -415,20 +415,10 @@ function prepare_partition() {
 }
 
 function ask_hostname() {
-    HOSTNAME_TYPED="false"
-    if [ "$HOSTNAME" == "ask" ]; then
-        while [ "$HOSTNAME" != "true" ]; do
-            read -sp 'Type host name: ' HOSTNAME
-            echo ""
-            read -sp 'Is "$HOSTNAME" correct? y/n: ' HOSTNAME_CORRECT
-            echo ""
-            if [ "$HOSTNAME_CORRECT" == 'y']; then
-                HOSTNAME_TYPED="true"
-            else
-                echo "Please type host name again."
-            fi
+    while [ "$HOSTNAME" == "ask" ]; do
+          read -sp 'Type host name: ' HOSTNAME
+          echo ""
         done
-    fi
 }
 
 function ask_passwords() {
