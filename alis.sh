@@ -414,6 +414,23 @@ function prepare_partition() {
     set -e
 }
 
+function ask_hostname() {
+    HOSTNAME_TYPED="false"
+    if [ "$HOSTNAME" == "ask" ]; then
+        while [ "$HOSTNAME" != "true" ]; do
+            read -sp 'Type host name: ' HOSTNAME
+            echo ""
+            read -sp 'Is "$HOSTNAME" correct? y/n: ' HOSTNAME_CORRECT
+            echo ""
+            if [ "$HOSTNAME_CORRECT" == 'y']; then
+                HOSTNAME_TYPED="true"
+            else
+                echo "Please type host name again."
+            fi
+        done
+    fi
+}
+
 function ask_passwords() {
     if [ "$LUKS_PASSWORD" == "ask" ]; then
         PASSWORD_TYPED="false"
